@@ -1,5 +1,8 @@
-import type { EmbeddedPiSubscribeContext } from "./pi-embedded-subscribe.handlers.types.js";
+import type { AgentEvent, AgentMessage } from "@mariozechner/pi-agent-core";
+
 import { emitAgentEvent } from "../infra/agent-events.js";
+import { normalizeUsage } from "./usage.js";
+import type { EmbeddedPiSubscribeContext } from "./pi-embedded-subscribe.handlers.types.js";
 import { createInlineCodeState } from "../markdown/code-spans.js";
 import { formatAssistantErrorText } from "./pi-embedded-helpers.js";
 import { isAssistantMessage } from "./pi-embedded-utils.js";
@@ -25,11 +28,23 @@ export function handleAgentStart(ctx: EmbeddedPiSubscribeContext) {
   });
 }
 
-export function handleAgentEnd(ctx: EmbeddedPiSubscribeContext) {
+export function handleAgentEnd(
+  ctx: EmbeddedPiSubscribeContext,
+  evt?: { messages?: AgentMessage[] },
+) {
   const lastAssistant = ctx.state.lastAssistant;
   const isError = isAssistantMessage(lastAssistant) && lastAssistant.stopReason === "error";
 
   ctx.log.debug(`embedded run agent end: runId=${ctx.params.runId} isError=${isError}`);
+
+  // Extract usage from the last assistant message in the agent_end event.
+  const lastAssistantMsg = evt?.messages
+    ?.slice()
+    .reverse()
+    .find((m) => (m as { role?: string }).role === "assistant") as
+    | { usage?: Record<string, unknown> }
+    | undefined;
+  const usage = normalizeUsage(lastAssistantMsg?.usage as Parameters<typeof normalizeUsage>[0]);
 
   if (isError && lastAssistant) {
     const friendlyError = formatAssistantErrorText(lastAssistant, {
@@ -43,6 +58,7 @@ export function handleAgentEnd(ctx: EmbeddedPiSubscribeContext) {
         phase: "error",
         error: friendlyError || lastAssistant.errorMessage || "LLM request failed.",
         endedAt: Date.now(),
+        usage,
       },
     });
     void ctx.params.onAgentEvent?.({
@@ -50,6 +66,7 @@ export function handleAgentEnd(ctx: EmbeddedPiSubscribeContext) {
       data: {
         phase: "error",
         error: friendlyError || lastAssistant.errorMessage || "LLM request failed.",
+        usage,
       },
     });
   } else {
@@ -59,11 +76,12 @@ export function handleAgentEnd(ctx: EmbeddedPiSubscribeContext) {
       data: {
         phase: "end",
         endedAt: Date.now(),
+        usage,
       },
     });
     void ctx.params.onAgentEvent?.({
       stream: "lifecycle",
-      data: { phase: "end" },
+      data: { phase: "end", usage },
     });
   }
 
