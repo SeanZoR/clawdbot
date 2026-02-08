@@ -397,7 +397,7 @@ export function createAgentEventHandler({
             evt.seq,
             lifecyclePhase === "error" ? "error" : "done",
             evt.data?.error,
-            evt.data?.usage,
+            evt.data?.usage as Parameters<typeof emitChatFinal>[5],
           );
         } else {
           emitChatFinal(
@@ -406,7 +406,7 @@ export function createAgentEventHandler({
             evt.seq,
             lifecyclePhase === "error" ? "error" : "done",
             evt.data?.error,
-            evt.data?.usage,
+            evt.data?.usage as Parameters<typeof emitChatFinal>[5],
           );
         }
       } else if (isAborted && (lifecyclePhase === "end" || lifecyclePhase === "error")) {
