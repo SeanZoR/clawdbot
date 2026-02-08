@@ -263,6 +263,7 @@ export function createAgentEventHandler({
     seq: number,
     jobState: "done" | "error",
     error?: unknown,
+    usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; total?: number },
   ) => {
     const text = chatRunState.buffers.get(clientRunId)?.trim() ?? "";
     const shouldSuppressSilent = isSilentReplyText(text, SILENT_REPLY_TOKEN);
@@ -282,6 +283,7 @@ export function createAgentEventHandler({
                 timestamp: Date.now(),
               }
             : undefined,
+        usage,
       };
       // Suppress webchat broadcast for heartbeat runs when showOk is false
       if (!shouldSuppressHeartbeatBroadcast(clientRunId)) {
@@ -395,6 +397,7 @@ export function createAgentEventHandler({
             evt.seq,
             lifecyclePhase === "error" ? "error" : "done",
             evt.data?.error,
+            evt.data?.usage,
           );
         } else {
           emitChatFinal(
@@ -403,6 +406,7 @@ export function createAgentEventHandler({
             evt.seq,
             lifecyclePhase === "error" ? "error" : "done",
             evt.data?.error,
+            evt.data?.usage,
           );
         }
       } else if (isAborted && (lifecyclePhase === "end" || lifecyclePhase === "error")) {

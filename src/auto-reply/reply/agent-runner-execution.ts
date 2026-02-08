@@ -221,6 +221,7 @@ export async function runAgentTurnWithFallback(params: {
                     phase: "end",
                     startedAt,
                     endedAt: Date.now(),
+                    usage: result?.meta?.agentMeta?.usage,
                   },
                 });
                 lifecycleTerminalEmitted = true;
